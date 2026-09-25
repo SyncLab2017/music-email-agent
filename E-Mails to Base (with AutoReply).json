@@ -1,0 +1,360 @@
+{
+  "name": "E-Mails to Base (with AutoReply)",
+  "nodes": [
+    {
+      "parameters": {
+        "mailbox": "Music e-mail",
+        "format": "resolved",
+        "options": {
+          "customEmailConfig": "[\"UNSEEN\"]"
+        }
+      },
+      "id": "d6ed0eb0-9d5c-4f7b-bb2c-008ccff6a4dd",
+      "name": "Email Trigger (IMAP)1",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        592,
+        208
+      ],
+      "credentials": {
+        "imap": {
+          "id": "DBkr0blInfeIX2Bp",
+          "name": "IMAP account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n  \"model\": \"deepseek-chat\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Ты — ассистент для парсинга музыкальных заявок (Demo Drop).\\n\\nТВОЯ ЗАДАЧА — проанализировать входные данные, которые состоят из МЕТАДАННЫХ (от кого пришло письмо реально) и ТЕЛА ПИСЬМА.\\n\\nЛОГИКА РАБОТЫ:\\n1. Сначала проверь ТЕЛО ПИСЬМА. Если это ПЕРЕСЛАННОЕ письмо (начинается с 'Fwd:', 'Пересылаемое сообщение', или содержит технический заголовок '... написал(а):'), то извлекай данные (Email, Имя) из текста этого заголовка.\\n2. Если это ПРЯМОЕ письмо (нет признаков пересылки), бери 'email' и 'contact_name' из предоставленных полей METADATA_FROM.\\n\\nВЕРНИ JSON с такими полями:\\n1. date: Дата получения письма. Формат: 'YYYY-MM-DD'. Если есть дата в тексте пересылки — бери её, иначе бери из METADATA_DATE.\\n2. contact_name: Имя Фамилия автора. Если имя на латинице, транслитерируй/переведи на русский (Sergey -> Сергей). Если в метаданных только email, попробуй найти подпись в конце письма.\\n3. artist_name: Название проекта/группы. Если не указано явно, дублируй имя.\\n4. email: Реальный email автора. Для прямых писем бери из METADATA_FROM. Для пересланных — из тела письма.\\n5. telegram: Юзернейм телеграм (через @), если есть в тексте.\\n6. city: Город, если указан.\\n7. music_links: Если в теме или тексте есть 'SourceAudio' — пиши строго 'SourceAudio'. ИНАЧЕ — ищи ссылки (Google Drive, Yandex Disk, SoundCloud).\\n8. other_links: Ссылки на соцсети, сайт.\\n9. references: Новое поле. Если автор пишет 'подойдет для проекта Х', 'в стиле сериала Y', 'референс к Z' — перечисли эти проекты/референсы через запятую. Если нет — ставь null.\\n10. summary: Краткая суть письма (1-2 предложения, о чем музыка, жанр, цель).\\n\\nЕсли поле не найдено — null.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": `METADATA_FROM: ${$json.headers?.from || $json.from || \"Unknown\"}\nMETADATA_SUBJECT: ${$json.headers?.subject || $json.subject || \"Unknown\"}\nMETADATA_DATE: ${$json.headers?.date || $json.date || \"Unknown\"}\n\nBODY_TEXT:\n${$json.text}`\n    }\n  ],\n  \"temperature\": 0.1,\n  \"response_format\": {\n    \"type\": \"json_object\"\n  }\n}\n}}",
+        "options": {}
+      },
+      "id": "152ced83-24e8-48d4-be36-bccd7340c096",
+      "name": "DeepSeek: Parse Forward1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1040,
+        208
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Ctqqg6bNtXfExQXh",
+          "name": "Email Agent2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $input.item.json.choices[0].message.content;\nconst cleanJson = content.replace(/```json/g, '').replace(/```/g, '').trim();\nconst parsed = JSON.parse(cleanJson);\n\n// Логика обработки даты\nif (parsed.date) {\n  // DeepSeek возвращает ДД.ММ.ГГГГ (22.02.2026). Превращаем в YYYY-MM-DD\n  const parts = parsed.date.split('.');\n  if (parts.length === 3) {\n    parsed.date = `${parts[2]}-${parts[1]}-${parts[0]}`;\n  }\n} else {\n  // Если DeepSeek не нашел дату — ставим сегодняшнюю\n  parsed.date = new Date().toISOString().split('T')[0];\n}\n\nreturn { json: parsed };"
+      },
+      "id": "bf26c7fe-e267-4a72-88ec-ddb2a6ad9e1e",
+      "name": "Format Data1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1SsJvaPwWFasHbgGWYU6R6DA-TZx6ALDC_xbfpbcENfA",
+          "mode": "list",
+          "cachedResultName": "Music Base 2026",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SsJvaPwWFasHbgGWYU6R6DA-TZx6ALDC_xbfpbcENfA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Лист1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SsJvaPwWFasHbgGWYU6R6DA-TZx6ALDC_xbfpbcENfA/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Пришло": "={{ $json.date }}",
+            "Контактное лицо": "={{ $json.contact_name }}",
+            "Артист / Лейбл": "={{ $json.artist_name }}",
+            "Контакт": "={{ $json.email }}",
+            "Ссылки": "={{ $json.music_links }}",
+            "Текст письма": "={{ $json.summary }}",
+            "Референсы": "={{ $json.references }}",
+            "ТГ": "={{ $json.telegram }}",
+            "Город": "={{ $json.city }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Пришло",
+              "displayName": "Пришло",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Контактное лицо",
+              "displayName": "Контактное лицо",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Артист / Лейбл",
+              "displayName": "Артист / Лейбл",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Контакт",
+              "displayName": "Контакт",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ТГ",
+              "displayName": "ТГ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Город",
+              "displayName": "Город",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Ссылки",
+              "displayName": "Ссылки",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Текст письма",
+              "displayName": "Текст письма",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Референсы",
+              "displayName": "Референсы",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "c363b8e0-bc7a-4e1c-a542-d8eb8a24217c",
+      "name": "Google Sheets1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1488,
+        208
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "4WUDEmhDj5vnjtCM",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c13106ad-9281-4353-b9a9-de6416a6b5e3",
+              "leftValue": "={{ $json.headers.to }}",
+              "rightValue": "music@synclab.pro",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        816,
+        208
+      ],
+      "id": "92b9e876-a745-4710-b14d-1a4b835adcbb",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Format Data1').item.json;\nconst originalEmail = $('Email Trigger (IMAP)1').item.json;\n\nconst email = data.email;\n\n// No email extracted — skip sending\nif (!email) {\n  return [];\n}\n\nconst name = data.contact_name || 'Музыкант';\nconst artist = data.artist_name;\nconst links = data.music_links;\nconst refs = data.references;\n\nconst subjectRaw = originalEmail.headers?.subject || originalEmail.subject || 'Ваша заявка';\nconst subject = 'Re: ' + subjectRaw.replace(/^Re:\\s*/i, '');\n\n// Personalized opening based on what was found\nlet personalized = (artist && artist !== data.contact_name)\n  ? `Получили заявку от проекта <strong>${artist}</strong>.`\n  : 'Получили вашу заявку.';\n\nif (links) {\n  personalized += ' Ссылки на музыку зафиксированы — обязательно послушаем.';\n}\n\n// Build list of clarifying questions based on missing fields\nconst questions = [];\nif (!links) {\n  questions.push('Пришлите ссылки на вашу музыку (SoundCloud, Google Drive, Яндекс Диск и т.п.)');\n}\nif (!refs) {\n  questions.push('Какие проекты или форматы вас интересуют? (фильмы, сериалы, реклама, игры — конкретные или любые?)');\n}\nquestions.push('Каков статус прав на вашу музыку? (эксклюзив / неэксклюзив, есть ли издатель или лейбл?)');\nquestions.push('Что приоритетнее: синхронизация в конкретных проектах или плейлисты / медиапродвижение?');\n\nconst qHtml = questions.map(q => `  <li>${q}</li>`).join('\\n');\nconst qText = questions.map((q, i) => `${i + 1}. ${q}`).join('\\n');\n\nconst html = `<p>Привет, ${name}!</p>\n\n<p>Спасибо за письмо — мы его получили. ${personalized}</p>\n\n<p>Чтобы рассмотреть заявку эффективнее, уточните, пожалуйста:</p>\n<ul>\n${qHtml}\n</ul>\n\n<p>Постараемся ответить в ближайшее время.</p>\n\n<hr style=\"border:none;border-top:1px solid #eee;margin:24px 0\">\n\n<p style=\"font-size:13px;color:#555\">\n  Подписывайтесь на нас:<br>\n  <a href=\"https://www.instagram.com/sync_lab_music_agency/\">Instagram</a> &nbsp;|&nbsp;\n  <a href=\"https://t.me/synclab\">Telegram</a>\n</p>\n\n<p style=\"font-size:13px;color:#555\">\n  Наша книга <em>«Музыкальный продюсер в кино»</em> доступна на\n  <a href=\"https://eksmo.ru/book/muzykalnyy-prodyuser-v-kino-u-n--ITD1380619/\">сайте ЭКСМО</a>.\n</p>\n\n<p style=\"font-size:11px;color:#aaa\">Synclab Pro &nbsp;·&nbsp; sync@synclab.pro</p>`;\n\nconst text = `Привет, ${name}!\\n\\nСпасибо за письмо — мы его получили. ${personalized.replace(/<[^>]+>/g, '')}\\n\\nЧтобы рассмотреть заявку эффективнее, уточните:\\n${qText}\\n\\nПостараемся ответить в ближайшее время.\\n\\n---\\nInstagram: https://www.instagram.com/sync_lab_music_agency/\\nTelegram: https://t.me/synclab\\nКнига «Музыкальный продюсер в кино»: https://eksmo.ru/book/muzykalnyy-prodyuser-v-kino-u-n--ITD1380619/\\n\\nSynclab Pro`;\n\nreturn {\n  json: {\n    to: email,\n    subject: subject,\n    html: html,\n    text: text\n  }\n};"
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Build Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "sync@synclab.pro",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "html": "={{ $json.html }}",
+        "options": {
+          "allowUnauthorizedCerts": false
+        }
+      },
+      "id": "b2c3d4e5-f6a7-8901-bcde-f01234567891",
+      "name": "Send Reply Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1936,
+        208
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "name": "SMTP sync@synclab.pro"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Email Trigger (IMAP)1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek: Parse Forward1": {
+      "main": [
+        [
+          {
+            "node": "Format Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Data1": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "DeepSeek: Parse Forward1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets1": {
+      "main": [
+        [
+          {
+            "node": "Build Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Reply": {
+      "main": [
+        [
+          {
+            "node": "Send Reply Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "814b717f-41d7-4a48-90f4-405e95548ac5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "139fba7a0692e9aa7df12ee7970b9bc3d4d7bc3f54c76cd48784aecc28a99583"
+  },
+  "id": "XqNu83SXucYUG5xJ",
+  "tags": []
+}
