@@ -139,9 +139,13 @@ async function cycle(): Promise<void> {
 async function main(): Promise<void> {
   log.info("music-email-agent starting");
 
-  await verifySmtp().catch((err) =>
-    log.warn("SMTP verify failed at boot", { err: (err as Error).message }),
-  );
+  // Kick off SMTP verify in the background — Yandex handshake can be slow and
+  // must not block HTTP listener / Telegram webhook registration.
+  verifySmtp()
+    .then(() => log.info("SMTP verify ok"))
+    .catch((err) =>
+      log.warn("SMTP verify failed at boot", { err: (err as Error).message }),
+    );
 
   const app = express();
   app.use(express.json());
