@@ -170,6 +170,7 @@ export async function registerWebhook(publicUrl: string): Promise<void> {
   await bot.telegram.setWebhook(url, {
     secret_token: env.telegram.webhookSecret,
     drop_pending_updates: true,
+    allowed_updates: ["message", "callback_query"],
   });
   log.info("Telegram webhook set", { url });
 }
