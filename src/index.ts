@@ -154,15 +154,18 @@ async function main(): Promise<void> {
     res.json({ ok: true, cycleInFlight, stopping });
   });
 
-  app.post("/tg/webhook", async (req: Request, res: Response) => {
-    try {
-      const secret = req.get("x-telegram-bot-api-secret-token");
-      await handleWebhook(req.body, secret ?? undefined);
-      res.sendStatus(200);
-    } catch (err) {
-      log.error("webhook error", { err: (err as Error).message });
+  app.post("/tg/webhook", (req: Request, res: Response) => {
+    const secret = req.get("x-telegram-bot-api-secret-token");
+    if (secret !== env.telegram.webhookSecret) {
       res.sendStatus(403);
+      return;
     }
+    // Ack immediately — Telegram times out at ~5s and callback handlers
+    // (SMTP send, etc.) can run much longer.
+    res.sendStatus(200);
+    handleWebhook(req.body, secret).catch((err) =>
+      log.error("webhook handler error", { err: (err as Error).message }),
+    );
   });
 
   app.listen(env.server.port, () => {
