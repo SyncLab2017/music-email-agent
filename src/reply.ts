@@ -37,12 +37,7 @@ export async function sendReply(input: {
 }
 
 export async function verifySmtp(): Promise<void> {
-  // Resend has no long-lived connection; a HEAD on domains is enough
-  // to confirm the key is accepted.
-  const res = await fetch("https://api.resend.com/domains", {
-    headers: { authorization: `Bearer ${env.resend.apiKey}` },
-  });
-  if (!res.ok) {
-    throw new Error(`Resend auth check: HTTP ${res.status}`);
-  }
+  // No-op: Resend is stateless HTTP. A restricted (send-only) API key
+  // has no readable endpoint to probe, so we defer to the first real
+  // sendReply() to catch auth issues.
 }
