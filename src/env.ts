@@ -1,8 +1,5 @@
 import { z } from "zod";
 
-const bool = (v: string | undefined) =>
-  v === "true" || v === "1" || v === "yes";
-
 function requireEnv(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`Missing env: ${name}`);
@@ -32,11 +29,6 @@ export const env = {
     pollIntervalMs: Number(process.env.POLL_INTERVAL_MS ?? 120_000),
   },
   smtp: {
-    host: requireEnv("SMTP_HOST"),
-    port: Number(process.env.SMTP_PORT ?? 465),
-    secure: bool(process.env.SMTP_SECURE ?? "true"),
-    user: requireEnv("SMTP_USER"),
-    password: requireEnv("SMTP_PASSWORD"),
     fromName: process.env.SMTP_FROM_NAME ?? "Synclab Pro",
     fromEmail: requireEnv("SMTP_FROM_EMAIL"),
   },
@@ -51,6 +43,10 @@ export const env = {
   },
   sqlite: {
     path: process.env.SQLITE_PATH ?? "/data/state.db",
+  },
+  resend: {
+    apiKey: requireEnv("RESEND_API_KEY"),
+    bcc: process.env.RESEND_BCC?.trim() || null,
   },
   telegram: (() => {
     const approver = requireEnv("TG_APPROVER_CHAT_ID");
