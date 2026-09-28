@@ -6,8 +6,9 @@ export interface DraftReply {
   text: string;
 }
 
-function stripTags(input: string): string {
-  return input.replace(/<[^>]+>/g, "");
+function firstName(full: string | null | undefined): string {
+  if (!full) return "";
+  return full.trim().split(/\s+/)[0] ?? "";
 }
 
 export function buildReply(input: {
@@ -17,52 +18,20 @@ export function buildReply(input: {
   const email = input.parsed.email;
   if (!email) return null;
 
-  const name = input.parsed.contact_name || "Музыкант";
-  const artist = input.parsed.artist_name;
-  const links = input.parsed.music_links;
-  const refs = input.parsed.references;
+  const name = firstName(input.parsed.contact_name) || "друзья";
+  const artist = input.parsed.artist_name?.trim();
+  const thanksSubject =
+    artist && artist !== input.parsed.contact_name ? artist : name;
 
   const subject = "Re: " + input.originalSubject.replace(/^Re:\s*/i, "");
 
-  let personalized =
-    artist && artist !== input.parsed.contact_name
-      ? `Получили заявку от проекта <strong>${artist}</strong>.`
-      : "Получили вашу заявку.";
-  if (links) {
-    personalized += " Ссылки на музыку зафиксированы — обязательно послушаем.";
-  }
-
-  const questions: string[] = [];
-  if (!links) {
-    questions.push(
-      "Пришлите ссылки на вашу музыку (SoundCloud, Google Drive, Яндекс Диск и т.п.)",
-    );
-  }
-  if (!refs) {
-    questions.push(
-      "Какие проекты или форматы вас интересуют? (фильмы, сериалы, реклама, игры — конкретные или любые?)",
-    );
-  }
-  questions.push(
-    "Каков статус прав на вашу музыку? (эксклюзив / неэксклюзив, есть ли издатель или лейбл?)",
-  );
-  questions.push(
-    "Что приоритетнее: синхронизация в конкретных проектах или плейлисты / медиапродвижение?",
-  );
-
-  const qHtml = questions.map((q) => `  <li>${q}</li>`).join("\n");
-  const qText = questions.map((q, i) => `${i + 1}. ${q}`).join("\n");
-
   const html = `<p>Привет, ${name}!</p>
 
-<p>Спасибо за письмо — мы его получили. ${personalized}</p>
+<p>Спасибо ${thanksSubject}, за письмо. Материалы сохраним для будущих проектов.</p>
 
-<p>Чтобы рассмотреть заявку эффективнее, уточните, пожалуйста:</p>
-<ul>
-${qHtml}
-</ul>
+<p>Чтобы не было в будущем недоразумений, уточните, пожалуйста:</p>
 
-<p>Постараемся ответить в ближайшее время.</p>
+<p>Каков статус по правам в присланных вами произведениях? (эксклюзив / неэксклюзив, есть ли издатель или лейбл?)</p>
 
 <p>Пока — загляните в наш каталог для sync-лицензирования: <a href="https://syncoteca.pro">syncoteca.pro</a>.</p>
 
@@ -76,16 +45,15 @@ ${qHtml}
   <a href="https://t.me/synclab">Telegram</a>
 </p>
 
-<p style="font-size:11px;color:#aaa">Synclab Pro &nbsp;·&nbsp; sync@synclab.pro</p>`;
+<p style="font-size:11px;color:#aaa">Denis Sharko · Synclab · denis@synclab.pro</p>`;
 
   const text = `Привет, ${name}!
 
-Спасибо за письмо — мы его получили. ${stripTags(personalized)}
+Спасибо ${thanksSubject}, за письмо. Материалы сохраним для будущих проектов.
 
-Чтобы рассмотреть заявку эффективнее, уточните:
-${qText}
+Чтобы не было в будущем недоразумений, уточните, пожалуйста:
 
-Постараемся ответить в ближайшее время.
+Каков статус по правам в присланных вами произведениях? (эксклюзив / неэксклюзив, есть ли издатель или лейбл?)
 
 Пока — загляните в наш каталог для sync-лицензирования: https://syncoteca.pro
 
@@ -95,7 +63,7 @@ ${qText}
 Instagram: https://www.instagram.com/sync_lab_music_agency/
 Telegram: https://t.me/synclab
 
-Synclab Pro`;
+Denis Sharko | Synclab`;
 
   return { subject, html, text };
 }
